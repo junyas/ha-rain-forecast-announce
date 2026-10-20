@@ -1,0 +1,201 @@
+blueprint:
+  name: 雨の降り出し・止みをスマートスピーカーで知らせる
+  description: >-
+    降水強度センサーの値から雨の降り出しと止みを判定し、スマートスピーカーに読み上げさせる。
+    在宅・時間帯・カレンダーの予定で、しゃべってよいときだけ発話する。
+    事前に configuration.yaml へ降水強度センサーと雨フラグを追加しておくこと（README 参照）。
+  domain: automation
+  source_url: https://github.com/unicco/ha-rain-announce/blob/main/blueprints/automation/rain_announce.yaml
+  input:
+    sources:
+      name: センサーとフラグ
+      input:
+        rain_sensor:
+          name: 降水強度センサー（mm/h）
+          selector:
+            entity:
+              domain: sensor
+        rain_flag:
+          name: 雨フラグ
+          description: 雨が降っている間 ON になる input_boolean。発話しないときも更新する
+          selector:
+            entity:
+              domain: input_boolean
+    thresholds:
+      name: 判定のしきい値
+      input:
+        start_threshold:
+          name: 降り出しのしきい値
+          default: 0.5
+          selector:
+            number:
+              min: 0.1
+              max: 10
+              step: 0.1
+              unit_of_measurement: mm/h
+        stop_threshold:
+          name: 止みのしきい値
+          description: 降り出しより低くして、境目で何度も発話しないようにする
+          default: 0.1
+          selector:
+            number:
+              min: 0
+              max: 10
+              step: 0.1
+              unit_of_measurement: mm/h
+        stop_minutes:
+          name: 止みと判定するまでの継続時間
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 60
+              unit_of_measurement: min
+    speaker_settings:
+      name: 読み上げ
+      input:
+        speaker:
+          name: スピーカー
+          selector:
+            entity:
+              domain: media_player
+        tts_engine:
+          name: TTS エンジン
+          selector:
+            entity:
+              domain: tts
+        language:
+          name: 言語
+          default: ja
+          selector:
+            text:
+        volume:
+          name: 読み上げ時の音量
+          default: 0.6
+          selector:
+            number:
+              min: 0
+              max: 1
+              step: 0.05
+        restore_seconds:
+          name: 元の音量に戻すまでの秒数
+          default: 6
+          selector:
+            number:
+              min: 1
+              max: 30
+              unit_of_measurement: s
+        start_message:
+          name: 降り出しの文言
+          default: 雨が降ってきました
+          selector:
+            text:
+        stop_message:
+          name: 止みの文言
+          default: 雨がやんできました
+          selector:
+            text:
+    guard:
+      name: 発話してよいときの条件
+      input:
+        persons:
+          name: 在宅を判定する人
+          description: 誰か 1 人でも home なら発話する。空なら在宅を見ない
+          default: []
+          selector:
+            entity:
+              domain: person
+              multiple: true
+        calendars:
+          name: 予定を見るカレンダー
+          description: 時間指定の予定が進行中なら発話しない。終日の予定は無視する。空なら予定を見ない
+          default: []
+          selector:
+            entity:
+              domain: calendar
+              multiple: true
+        speak_from:
+          name: 発話する時間帯（開始）
+          default: "07:00:00"
+          selector:
+            time:
+        speak_until:
+          name: 発話する時間帯（終了）
+          default: "22:00:00"
+          selector:
+            time:
+
+mode: single
+
+variables:
+  rain_flag: !input rain_flag
+  speaker: !input speaker
+  persons: !input persons
+  calendars: !input calendars
+  start_message: !input start_message
+  stop_message: !input stop_message
+
+triggers:
+  - trigger: numeric_state
+    id: start
+    entity_id: !input rain_sensor
+    above: !input start_threshold
+  - trigger: numeric_state
+    id: stop
+    entity_id: !input rain_sensor
+    below: !input stop_threshold
+    for:
+      minutes: !input stop_minutes
+
+conditions:
+  - condition: template
+    value_template: >-
+      {{ (trigger.id == 'start' and is_state(rain_flag, 'off'))
+         or (trigger.id == 'stop' and is_state(rain_flag, 'on')) }}
+
+actions:
+  - if:
+      - condition: trigger
+        id: start
+    then:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: !input rain_flag
+    else:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: !input rain_flag
+  - if:
+      - condition: template
+        value_template: >-
+          {{ persons | count == 0
+             or persons | select('is_state', 'home') | list | count > 0 }}
+      - condition: time
+        after: !input speak_from
+        before: !input speak_until
+      - condition: template
+        value_template: >-
+          {{ calendars | select('is_state', 'on')
+             | reject('is_state_attr', 'all_day', true) | list | count == 0 }}
+    then:
+      - variables:
+          prev_volume: "{{ state_attr(speaker, 'volume_level') }}"
+      - action: media_player.volume_set
+        target:
+          entity_id: !input speaker
+        data:
+          volume_level: !input volume
+      - action: tts.speak
+        target:
+          entity_id: !input tts_engine
+        data:
+          media_player_entity_id: !input speaker
+          message: "{{ start_message if trigger.id == 'start' else stop_message }}"
+          language: !input language
+      - delay:
+          seconds: !input restore_seconds
+      - action: media_player.volume_set
+        target:
+          entity_id: !input speaker
+        data:
+          volume_level: "{{ prev_volume | float(0.2) }}"
