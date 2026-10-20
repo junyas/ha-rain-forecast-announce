@@ -164,6 +164,6 @@ The default messages are in Japanese. Change the language and both messages in t
 
 ---
 
-Webサービス by Yahoo! JAPAN （https://developer.yahoo.co.jp/sitemap/）
+[Webサービス by Yahoo! JAPAN](https://developer.yahoo.co.jp/sitemap/)
 
-Web Services by Yahoo! JAPAN （https://developer.yahoo.co.jp/sitemap/）
+[Web Services by Yahoo! JAPAN](https://developer.yahoo.co.jp/sitemap/)
