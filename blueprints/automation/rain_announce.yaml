@@ -1,31 +1,35 @@
 blueprint:
-  name: 雨の降り出し・止みをスマートスピーカーで知らせる
+  name: 雨の降り出し・止みをスマートスピーカーで知らせる / Announce rain start and stop
   description: >-
     降水強度センサーの値から雨の降り出しと止みを判定し、スマートスピーカーに読み上げさせる。
     在宅・時間帯・カレンダーの予定で、しゃべってよいときだけ発話する。
     事前に configuration.yaml へ降水強度センサーと雨フラグを追加しておくこと（README 参照）。
+
+    Announces on a smart speaker when rain starts and stops, based on a rainfall sensor.
+    Speaks only when someone is home, within the set hours, and with no timed calendar event.
+    Add the rainfall sensor and the rain flag to configuration.yaml first (see README).
   domain: automation
   source_url: https://github.com/unicco/ha-rain-announce/blob/main/blueprints/automation/rain_announce.yaml
   input:
     sources:
-      name: センサーとフラグ
+      name: センサーとフラグ / Sensor and flag
       input:
         rain_sensor:
-          name: 降水強度センサー（mm/h）
+          name: 降水強度センサー（mm/h） / Rainfall sensor (mm/h)
           selector:
             entity:
               domain: sensor
         rain_flag:
-          name: 雨フラグ
-          description: 雨が降っている間 ON になる input_boolean。発話しないときも更新する
+          name: 雨フラグ / Rain flag
+          description: 雨が降っている間 ON になる input_boolean。発話しないときも更新する / input_boolean that is ON while it rains. Updated even when nothing is announced
           selector:
             entity:
               domain: input_boolean
     thresholds:
-      name: 判定のしきい値
+      name: 判定のしきい値 / Thresholds
       input:
         start_threshold:
-          name: 降り出しのしきい値
+          name: 降り出しのしきい値 / Rain start threshold
           default: 0.5
           selector:
             number:
@@ -34,8 +38,8 @@ blueprint:
               step: 0.1
               unit_of_measurement: mm/h
         stop_threshold:
-          name: 止みのしきい値
-          description: 降り出しより低くして、境目で何度も発話しないようにする
+          name: 止みのしきい値 / Rain stop threshold
+          description: 降り出しより低くして、境目で何度も発話しないようにする / Keep it lower than the start threshold to avoid repeated announcements near the boundary
           default: 0.1
           selector:
             number:
@@ -44,7 +48,7 @@ blueprint:
               step: 0.1
               unit_of_measurement: mm/h
         stop_minutes:
-          name: 止みと判定するまでの継続時間
+          name: 止みと判定するまでの継続時間 / Minutes below threshold before rain stops
           default: 10
           selector:
             number:
@@ -52,25 +56,25 @@ blueprint:
               max: 60
               unit_of_measurement: min
     speaker_settings:
-      name: 読み上げ
+      name: 読み上げ / Announcement
       input:
         speaker:
-          name: スピーカー
+          name: スピーカー / Speaker
           selector:
             entity:
               domain: media_player
         tts_engine:
-          name: TTS エンジン
+          name: TTS エンジン / TTS engine
           selector:
             entity:
               domain: tts
         language:
-          name: 言語
+          name: 言語 / Language
           default: ja
           selector:
             text:
         volume:
-          name: 読み上げ時の音量
+          name: 読み上げ時の音量 / Volume while speaking
           default: 0.6
           selector:
             number:
@@ -78,7 +82,7 @@ blueprint:
               max: 1
               step: 0.05
         restore_seconds:
-          name: 元の音量に戻すまでの秒数
+          name: 元の音量に戻すまでの秒数 / Seconds before restoring volume
           default: 6
           selector:
             number:
@@ -86,41 +90,41 @@ blueprint:
               max: 30
               unit_of_measurement: s
         start_message:
-          name: 降り出しの文言
+          name: 降り出しの文言 / Rain start message
           default: 雨が降ってきました
           selector:
             text:
         stop_message:
-          name: 止みの文言
+          name: 止みの文言 / Rain stop message
           default: 雨がやんできました
           selector:
             text:
     guard:
-      name: 発話してよいときの条件
+      name: 発話してよいときの条件 / When to speak
       input:
         persons:
-          name: 在宅を判定する人
-          description: 誰か 1 人でも home なら発話する。空なら在宅を見ない
+          name: 在宅を判定する人 / People to check for presence
+          description: 誰か 1 人でも home なら発話する。空なら在宅を見ない / Speaks if anyone is home. Leave empty to skip
           default: []
           selector:
             entity:
               domain: person
               multiple: true
         calendars:
-          name: 予定を見るカレンダー
-          description: 時間指定の予定が進行中なら発話しない。終日の予定は無視する。空なら予定を見ない
+          name: 予定を見るカレンダー / Calendars to check
+          description: 時間指定の予定が進行中なら発話しない。終日の予定は無視する。空なら予定を見ない / Stays silent during timed events. All-day events are ignored. Leave empty to skip
           default: []
           selector:
             entity:
               domain: calendar
               multiple: true
         speak_from:
-          name: 発話する時間帯（開始）
+          name: 発話する時間帯（開始） / Speak from
           default: "07:00:00"
           selector:
             time:
         speak_until:
-          name: 発話する時間帯（終了）
+          name: 発話する時間帯（終了） / Speak until
           default: "22:00:00"
           selector:
             time:
