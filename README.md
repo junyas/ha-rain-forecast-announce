@@ -1,7 +1,6 @@
 # ha-rain-announce
 
-雨が降り出したとき・やんだときに、Home Assistant からスマートスピーカー（Google Home など）にしゃべらせる設定です。
-予報ではなく Yahoo! 気象情報 API の雨雲レーダー観測値を使うので、実際の降り出しとのずれが小さくなります。
+雨が降り出したとき・やんだときに、Home Assistant からスマートスピーカー（Google Home など）に発話させる設定です。
 
 ![システム図](docs/system.png)
 
@@ -19,9 +18,10 @@
 
 ## 必要なもの
 
-- Home Assistant（2024.10 以降。`triggers:` / `actions:` の書き方を使っています）
-- Yahoo! JAPAN の**アプリケーション ID**（各自で取得してください）
-- TTS エンジン（下の例は Google 翻訳 TTS）と、HA から再生できるスピーカー
+- Home Assistant（2024.10 以降）
+- Yahoo! JAPAN の**アプリケーション ID**
+- TTS エンジン（下の例は Google 翻訳 TTS）
+- HA から再生できるスピーカー
 - 在宅判定に使う `person`、予定を見る `calendar`（どちらも任意）
 
 Yahoo! 気象情報 API は日本国内の座標だけに対応しています。
@@ -74,7 +74,7 @@ https://github.com/unicco/ha-rain-announce/blob/main/blueprints/automation/rain_
 - **アプリケーション ID は人と共有しないでください。** 公開するリポジトリや記事に書かず、`secrets.yaml` に置きます
 - Yahoo! の Web API は、原則として**利用者自身の便宜のための非商用目的**で使えます（[WebAPI の商用利用](https://support.yahoo-net.jp/PccDeveloper/s/article/H000011080)）。利用上限は 1 アプリケーションにつき 24 時間で 5 万リクエストで、5 分ごとの取得なら 1 日 288 回です
 - Yahoo! 気象情報 API・Google 翻訳 TTS とも、提供の継続は保証されていません。Google 翻訳 TTS は非公式の読み上げ機能を使う統合なので、使えなくなったら Google Cloud TTS や Piper など別の TTS エンジンに差し替えてください
-- カレンダーの「終日の予定」は無視します。服薬の記録などを終日予定で入れていると、ずっと発話しなくなるためです
+- カレンダーの「終日の予定」は無視します。終日予定を入れると、ずっと発話しなくなるためです
 
 ## ライセンス
 
