@@ -189,6 +189,8 @@ conditions:
          or trigger.id == 'forecast' }}
 
 actions:
+  - condition: template
+    value_template: "{{ trigger.id | default('') in ['start', 'stop', 'forecast'] }}"
   - if:
       - condition: trigger
         id: start
