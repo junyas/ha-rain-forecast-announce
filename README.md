@@ -7,6 +7,7 @@
 ## 日本語
 
 雨が降り出したとき・やんだときと、雨が振り出しそうなときに、Home Assistant からスマートスピーカー（Google Home など）に発話させる設定です。
+（オリジナル https://github.com/unicco/ha-rain-announce に予測を追加したFork）
 
 ### 動き
 
@@ -53,12 +54,12 @@ yolp_appid: <取得したアプリケーション ID>
 
 #### 3. Blueprint を取り込む
 
-[![Blueprint をインポート](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Funicco%2Fha-rain-announce%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Frain_announce.yaml)
+[![Blueprint をインポート](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fjunyas%2Fha-rain-forecast-announce%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Frain_announce.yaml)
 
 ボタンが使えない場合は、「設定 → オートメーションとシーン → ブループリント → ブループリントをインポート」に次の URL を貼ります。
 
 ```
-https://github.com/unicco/ha-rain-announce/blob/main/blueprints/automation/rain_announce.yaml
+https://github.com/junyas/ha-rain-forecast-announce/blob/main/blueprints/automation/rain_announce.yaml
 ```
 
 #### 4. オートメーションを作る
@@ -83,6 +84,7 @@ https://github.com/unicco/ha-rain-announce/blob/main/blueprints/automation/rain_
 ## English
 
 Home Assistant configuration that makes a smart speaker (such as Google Home) announce when rain starts, when it stops and forecast for rain.
+(Forked from https://github.com/unicco/ha-rain-announce to add feature of forecast)
 
 > **Japan only.** The rain data comes from the Yahoo! JAPAN Weather API (YOLP), which only covers locations in Japan.
 
@@ -129,12 +131,12 @@ These two cannot be included in a Blueprint, so they are added by hand.
 
 #### 3. Import the Blueprint
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Funicco%2Fha-rain-announce%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Frain_announce.yaml)
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fjunyas%2Fha-rain-forecast-announce%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Frain_announce.yaml)
 
 If the button does not work, go to Settings → Automations & Scenes → Blueprints → Import Blueprint and paste this URL:
 
 ```
-https://github.com/unicco/ha-rain-announce/blob/main/blueprints/automation/rain_announce.yaml
+https://github.com/junyas/ha-rain-forecast-announce/blob/main/blueprints/automation/rain_announce.yaml
 ```
 
 #### 4. Create the automation

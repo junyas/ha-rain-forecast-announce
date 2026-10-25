@@ -1,15 +1,15 @@
 blueprint:
-  name: 雨の降り出し・止みをスマートスピーカーで知らせる / Announce rain start and stop
+  name: 雨の降り出し・止み、及び予測をスマートスピーカーで知らせる / Announce rain start and stop
   description: >-
-    降水強度センサーの値から雨の降り出しと止みを判定し、スマートスピーカーに読み上げさせる。
+    降水強度センサーの値から雨の降り出しと止みの判定と直近1時間の予測を元に、スマートスピーカーに読み上げさせる。
     在宅・時間帯・カレンダーの予定で、しゃべってよいときだけ発話する。
     事前に configuration.yaml へ降水強度センサーと雨フラグを追加しておくこと（README 参照）。
 
-    Announces on a smart speaker when rain starts and stops, based on a rainfall sensor.
+    Announces on a smart speaker when rain starts, stops and forecast for rain, based on a rainfall sensor.
     Speaks only when someone is home, within the set hours, and with no timed calendar event.
     Add the rainfall sensor and the rain flag to configuration.yaml first (see README).
   domain: automation
-  source_url: https://github.com/unicco/ha-rain-announce/blob/main/blueprints/automation/rain_announce.yaml
+  source_url: https://github.com/junyas/ha-rain-forecast-announce/blob/main/blueprints/automation/rain_announce.yaml
   input:
     sources:
       name: センサーとフラグ / Sensor and flag
