@@ -1,5 +1,5 @@
 blueprint:
-  name: 雨の降り出し・止み、及び予測をスマートスピーカーで知らせる / Announce rain start and stop
+  name: YOLP 雨の降り出し・止み・予報通知 / YOLP Rain Start, Stop and Forecast
   description: >-
     降水強度センサーの値から雨の降り出しと止みの判定と直近1時間の予測を元に、スマートスピーカーに読み上げさせる。
     在宅・時間帯・カレンダーの予定で、しゃべってよいときだけ発話する。
@@ -55,6 +55,16 @@ blueprint:
               min: 0
               max: 60
               unit_of_measurement: min
+        forecast_threshold:
+          name: 予報通知のしきい値 / Forecast announcement threshold
+          description: この値以上の降水強度が今後 60 分に予測されたら通知する / Announce when forecast rainfall reaches this intensity within the next 60 minutes
+          default: 0.5
+          selector:
+            number:
+              min: 0.1
+              max: 10
+              step: 0.1
+              unit_of_measurement: mm/h
     speaker_settings:
       name: 読み上げ / Announcement
       input:
@@ -99,6 +109,12 @@ blueprint:
           default: 雨がやんできました
           selector:
             text:
+        forecast_message:
+          name: 予報の文言 / Forecast message
+          description: "{minutes} は降り始めまでの分数、{max} は今後 60 分の最大降水強度（mm/h）に置き換わります / {minutes} is minutes until rain starts; {max} is the maximum forecast intensity (mm/h) in the next 60 minutes"
+          default: "雨が{minutes}分後に降り始めそうです。今後1時間の最大降水強度は{max} mm/hの予想です"
+          selector:
+            text:
     guard:
       name: 発話してよいときの条件 / When to speak
       input:
@@ -132,12 +148,15 @@ blueprint:
 mode: single
 
 variables:
-  rain_flag: !input rain_flag
+  yolp_rain_flag: !input rain_flag
   speaker: !input speaker
   persons: !input persons
   calendars: !input calendars
-  start_message: !input start_message
-  stop_message: !input stop_message
+  rainfall_sensor: !input rain_sensor
+  rain_start_message: !input start_message
+  rain_stop_message: !input stop_message
+  rain_forecast_message: !input forecast_message
+  rain_forecast_threshold: !input forecast_threshold
 
 triggers:
   - trigger: numeric_state
@@ -150,12 +169,41 @@ triggers:
     below: !input stop_threshold
     for:
       minutes: !input stop_minutes
+  - trigger: state
+    id: forecast
+    entity_id: !input rain_sensor
+    attribute: Weather
 
 conditions:
   - condition: template
     value_template: >-
-      {{ (trigger.id == 'start' and is_state(rain_flag, 'off'))
-         or (trigger.id == 'stop' and is_state(rain_flag, 'on')) }}
+      {% set previous = (trigger.from_state.attributes.get('Weather', []) if trigger.from_state else []) or [] %}
+      {% set current = (trigger.to_state.attributes.get('Weather', []) if trigger.to_state else []) or [] %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(previous_rain=false, current_rain=false) %}
+      {% for point in previous %}
+        {% set timestamp = as_timestamp(point.Date | default('', true), 0) %}
+        {% if point.Type | default('') == 'forecast'
+              and now_ts <= timestamp <= now_ts + 3600
+              and point.Rainfall | default(0) | float(0) > rain_forecast_threshold | float %}
+          {% set ns.previous_rain = true %}
+        {% endif %}
+      {% endfor %}
+      {% for point in current %}
+        {% set timestamp = as_timestamp(point.Date | default('', true), 0) %}
+        {% if point.Type | default('') == 'forecast'
+              and now_ts <= timestamp <= now_ts + 3600
+              and point.Rainfall | default(0) | float(0) > rain_forecast_threshold | float %}
+          {% set ns.current_rain = true %}
+        {% endif %}
+      {% endfor %}
+      {{ (trigger.id == 'start' and is_state(yolp_rain_flag, 'off'))
+         or (trigger.id == 'stop' and is_state(yolp_rain_flag, 'on'))
+         or (trigger.id == 'forecast'
+             and is_state(yolp_rain_flag, 'off')
+             and states(rainfall_sensor) | float(0) <= rain_forecast_threshold | float
+             and not ns.previous_rain
+             and ns.current_rain) }}
 
 actions:
   - if:
@@ -165,10 +213,45 @@ actions:
       - action: input_boolean.turn_on
         target:
           entity_id: !input rain_flag
-    else:
+  - if:
+      - condition: trigger
+        id: stop
+    then:
       - action: input_boolean.turn_off
         target:
           entity_id: !input rain_flag
+  - variables:
+      forecast_points: >-
+        {{ ((trigger.to_state.attributes.get('Weather', []) if trigger.to_state else [])
+            if trigger.id == 'forecast' else (state_attr(rainfall_sensor, 'Weather') or []))
+           | selectattr('Type', 'equalto', 'forecast') | list }}
+      forecast_minutes: >-
+        {% set now_ts = as_timestamp(now()) %}
+        {% set ns = namespace(minutes=none) %}
+        {% for point in forecast_points %}
+          {% set timestamp = as_timestamp(point.Date, 0) %}
+          {% if now_ts <= timestamp <= now_ts + 3600
+                and point.Rainfall | float(0) > rain_forecast_threshold | float %}
+            {% set minutes = ((timestamp - now_ts) / 60) | round(0, 'ceil') | int %}
+            {% if ns.minutes is none or minutes < ns.minutes %}
+              {% set ns.minutes = minutes %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.minutes if ns.minutes is not none else 0 }}
+      forecast_max: >-
+        {% set now_ts = as_timestamp(now()) %}
+        {% set ns = namespace(maximum=0) %}
+        {% for point in forecast_points %}
+          {% set timestamp = as_timestamp(point.Date, 0) %}
+          {% if now_ts <= timestamp <= now_ts + 3600 %}
+            {% set rainfall = point.Rainfall | float(0) %}
+            {% if rainfall > ns.maximum %}
+              {% set ns.maximum = rainfall %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.maximum }}
   - if:
       - condition: template
         value_template: >-
@@ -183,7 +266,7 @@ actions:
              | reject('is_state_attr', 'all_day', true) | list | count == 0 }}
     then:
       - variables:
-          prev_volume: "{{ state_attr(speaker, 'volume_level') }}"
+          previous_speaker_volume: "{{ state_attr(speaker, 'volume_level') }}"
       - action: media_player.volume_set
         target:
           entity_id: !input speaker
@@ -194,7 +277,16 @@ actions:
           entity_id: !input tts_engine
         data:
           media_player_entity_id: !input speaker
-          message: "{{ start_message if trigger.id == 'start' else stop_message }}"
+          message: >-
+            {% if trigger.id == 'start' %}
+              {{ rain_start_message }}
+            {% elif trigger.id == 'stop' %}
+              {{ rain_stop_message }}
+            {% else %}
+              {{ rain_forecast_message
+                 | replace('{minutes}', forecast_minutes | string)
+                 | replace('{max}', forecast_max | round(1) | string) }}
+            {% endif %}
           language: !input language
       - delay:
           seconds: !input restore_seconds
@@ -202,4 +294,4 @@ actions:
         target:
           entity_id: !input speaker
         data:
-          volume_level: "{{ prev_volume | float(0.2) }}"
+          volume_level: "{{ previous_speaker_volume | float(0.2) }}"

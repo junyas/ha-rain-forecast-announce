@@ -16,6 +16,8 @@
 | 降り出し | 降水強度が 0.5 mm/h を超えた、かつ雨フラグが OFF | ON にする |
 | 止み | 0.1 mm/h 未満が 10 分続いた、かつ雨フラグが ON | OFF にする |
 
+- 今後 60 分の予報にしきい値以上の雨が新たに現れたとき、降り始めまでの分数と、期間内の最大降水強度（mm/h）を一度通知します
+- センサーの状態値は現在の観測値、`Weather` 属性は観測値と予報値の一覧です。10 分ごとの予報値を足し合わせず、最大値を予想される最大降水強度として扱います
 - 雨フラグは発話しないときも更新します。ずっと晴れている日に「やみました」と言わないためです
 - 発話するのは、在宅・指定の時間帯（初期値 7〜22 時）・カレンダーに時間指定の予定が無い、をすべて満たすときだけです
 - 読み上げ中だけ音量を上げ、数秒後に元の音量へ戻します
@@ -48,7 +50,8 @@ yolp_appid: <取得したアプリケーション ID>
 [`configuration.yaml.example`](configuration.yaml.example) の中身を `configuration.yaml` に追記し、HA を再起動します。
 
 - 座標は HA の「ホーム」ゾーンから読むので、書き換えは不要です
-- 再起動後、`sensor.yolp_rain_intensity` に mm/h の値が入り、`input_boolean.was_raining` ができていることを確認します
+- 再起動後、`sensor.yolp_rain_intensity_and_forecast` に mm/h の値と `Weather` 属性が入り、`input_boolean.yolp_was_raining` ができていることを確認します。オリジナル版と併用しても名前が衝突しないよう、この版では YOLP 固有の名前を使います
+- 以前の版から更新する場合は、オートメーションのセンサーと雨フラグを新しいエンティティに選び直してください。旧エンティティは HA のエンティティ登録に残ることがあるため、不要なら設定画面から整理します
 
 この 2 つは Blueprint に含められないため、手で追記します。
 
@@ -68,8 +71,8 @@ https://github.com/junyas/ha-rain-forecast-announce/blob/main/blueprints/automat
 
 | 入力 | 選ぶもの |
 |---|---|
-| 降水強度センサー | `sensor.yolp_rain_intensity` |
-| 雨フラグ | `input_boolean.was_raining` |
+| 降水強度センサー | `sensor.yolp_rain_intensity_and_forecast` |
+| 雨フラグ | `input_boolean.yolp_was_raining` |
 | スピーカー | 読み上げさせる `media_player` |
 | TTS エンジン | 例: `tts.google_translate_en_com`（言語は `ja` のままで日本語を読みます） |
 | 在宅を判定する人・予定を見るカレンダー | 任意 |
@@ -96,6 +99,8 @@ Home Assistant configuration that makes a smart speaker (such as Google Home) an
 | Rain stops | Rainfall stays below 0.1 mm/h for 10 minutes and the rain flag is ON | Turn OFF |
 
 - The rain flag is updated even when nothing is announced, so the speaker never says "it stopped raining" on a dry day
+- When qualifying rain newly appears in the next 60 minutes of forecast, it announces the minutes until rain starts and the maximum forecast intensity (mm/h) in that period once
+- The sensor state remains the current observation; its `Weather` attribute contains the observation and forecast entries. Forecast intensities are not summed—the maximum is announced as the expected peak intensity
 - It speaks only when all of these are true: someone is home, it is within the set hours (default 7:00–22:00), and no timed calendar event is in progress
 - The volume is raised only while speaking and restored a few seconds later
 - Thresholds, hours and messages can be changed in the Blueprint inputs
@@ -125,7 +130,8 @@ yolp_appid: <your application ID>
 Append the contents of [`configuration.yaml.example`](configuration.yaml.example) to `configuration.yaml` and restart Home Assistant.
 
 - The coordinates are read from your Home zone, so you do not need to edit them
-- After restarting, check that `sensor.yolp_rain_intensity` shows a value in mm/h and that `input_boolean.was_raining` exists
+- After restarting, check that `sensor.yolp_rain_intensity_and_forecast` has a value in mm/h and a `Weather` attribute, and that `input_boolean.yolp_was_raining` exists. These YOLP-specific names avoid collisions when running alongside the original version
+- When updating from an earlier version, select the new entities in the automation. The old entities may remain in Home Assistant's entity registry and can be removed there if no longer needed
 
 These two cannot be included in a Blueprint, so they are added by hand.
 
@@ -145,8 +151,8 @@ Create an automation from the imported Blueprint and select:
 
 | Input | Select |
 |---|---|
-| Rainfall sensor | `sensor.yolp_rain_intensity` |
-| Rain flag | `input_boolean.was_raining` |
+| Rainfall sensor | `sensor.yolp_rain_intensity_and_forecast` |
+| Rain flag | `input_boolean.yolp_was_raining` |
 | Speaker | The `media_player` to speak on |
 | TTS engine | e.g. `tts.google_translate_en_com` (set the language to `en` for English messages) |
 | People / calendars | Optional |

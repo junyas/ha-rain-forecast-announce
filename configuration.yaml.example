@@ -12,18 +12,21 @@ rest:
       output: json
       interval: 5
     sensor:
-      - name: "YOLP rain intensity"
-        unique_id: yolp_rain_intensity
+      - name: "YOLP rain intensity and forecast"
+        unique_id: yolp_rain_intensity_and_forecast
         unit_of_measurement: "mm/h"
         state_class: measurement
-        # WeatherList には観測値と 60 分先までの予報が並ぶ。観測値の最新だけを使う
+        json_attributes_path: "$.Feature[0].Property.WeatherList"
+        json_attributes:
+          - Weather
+        # WeatherList には観測値と 60 分先までの予報が並ぶ。状態値は最新の観測値にする
         value_template: >-
           {{ value_json.Feature[0].Property.WeatherList.Weather
              | selectattr('Type','equalto','observation')
              | map(attribute='Rainfall') | list | last | float(0) }}
 
 input_boolean:
-  # 雨が降っている間 ON。止みを「降っていた後」に限って判定するために使う
-  was_raining:
-    name: "Was raining"
+  # YOLP の観測値で雨の開始・停止を判定するためのフラグ
+  yolp_was_raining:
+    name: "YOLP Was Raining"
     icon: mdi:weather-rainy
