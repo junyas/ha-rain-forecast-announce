@@ -30,3 +30,11 @@ input_boolean:
   yolp_was_raining:
     name: "YOLP Was Raining"
     icon: mdi:weather-rainy
+
+input_datetime:
+  # 前回アナウンスした予報上の降り始め時刻。実際の雨開始または予報解除でリセットする
+  yolp_last_forecast_rain_start:
+    name: "YOLP Last Forecast Rain Start"
+    has_date: true
+    has_time: true
+    initial: "1970-01-01 00:00:00"

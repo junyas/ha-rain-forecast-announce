@@ -3,11 +3,11 @@ blueprint:
   description: >-
     降水強度センサーの値から雨の降り出しと止みの判定と直近1時間の予測を元に、スマートスピーカーに読み上げさせる。
     在宅・時間帯・カレンダーの予定で、しゃべってよいときだけ発話する。
-    事前に configuration.yaml へ降水強度センサーと雨フラグを追加しておくこと（README 参照）。
+    事前に configuration.yaml へ降水強度センサー、雨フラグ、予報時刻の記憶用 input_datetime を追加しておくこと（README 参照）。
 
     Announces on a smart speaker when rain starts, stops and forecast for rain, based on a rainfall sensor.
     Speaks only when someone is home, within the set hours, and with no timed calendar event.
-    Add the rainfall sensor and the rain flag to configuration.yaml first (see README).
+    Add the rainfall sensor, rain flag and forecast-start memory input_datetime to configuration.yaml first (see README).
   domain: automation
   source_url: https://github.com/junyas/ha-rain-forecast-announce/blob/main/blueprints/automation/rain_announce.yaml
   input:
@@ -25,6 +25,12 @@ blueprint:
           selector:
             entity:
               domain: input_boolean
+        forecast_start_memory:
+          name: 予報した降り始め時刻の記憶 / Remembered forecast start time
+          description: configuration.yaml に追加した input_datetime.yolp_last_forecast_rain_start を選択 / Select input_datetime.yolp_last_forecast_rain_start added to configuration.yaml
+          selector:
+            entity:
+              domain: input_datetime
     thresholds:
       name: 判定のしきい値 / Thresholds
       input:
@@ -112,7 +118,7 @@ blueprint:
         forecast_message:
           name: 予報の文言 / Forecast message
           description: "{minutes} は降り始めまでの分数、{max} は今後 60 分の最大降水強度（mm/h）に置き換わります / {minutes} is minutes until rain starts; {max} is the maximum forecast intensity (mm/h) in the next 60 minutes"
-          default: "雨が{minutes}分後に降り始めそうです。今後1時間の最大降水強度は{max} mm/hの予想です"
+          default: "雨が{minutes}分後に降り始めそうです。今後1時間の最大降水量は{max}mmの予想です"
           selector:
             text:
     guard:
@@ -149,6 +155,7 @@ mode: single
 
 variables:
   yolp_rain_flag: !input rain_flag
+  forecast_start_memory: !input forecast_start_memory
   speaker: !input speaker
   persons: !input persons
   calendars: !input calendars
@@ -177,33 +184,9 @@ triggers:
 conditions:
   - condition: template
     value_template: >-
-      {% set previous = (trigger.from_state.attributes.get('Weather', []) if trigger.from_state else []) or [] %}
-      {% set current = (trigger.to_state.attributes.get('Weather', []) if trigger.to_state else []) or [] %}
-      {% set now_ts = as_timestamp(now()) %}
-      {% set ns = namespace(previous_rain=false, current_rain=false) %}
-      {% for point in previous %}
-        {% set timestamp = as_timestamp(point.Date | default('', true), 0) %}
-        {% if point.Type | default('') == 'forecast'
-              and now_ts <= timestamp <= now_ts + 3600
-              and point.Rainfall | default(0) | float(0) > rain_forecast_threshold | float %}
-          {% set ns.previous_rain = true %}
-        {% endif %}
-      {% endfor %}
-      {% for point in current %}
-        {% set timestamp = as_timestamp(point.Date | default('', true), 0) %}
-        {% if point.Type | default('') == 'forecast'
-              and now_ts <= timestamp <= now_ts + 3600
-              and point.Rainfall | default(0) | float(0) > rain_forecast_threshold | float %}
-          {% set ns.current_rain = true %}
-        {% endif %}
-      {% endfor %}
       {{ (trigger.id == 'start' and is_state(yolp_rain_flag, 'off'))
          or (trigger.id == 'stop' and is_state(yolp_rain_flag, 'on'))
-         or (trigger.id == 'forecast'
-             and is_state(yolp_rain_flag, 'off')
-             and states(rainfall_sensor) | float(0) <= rain_forecast_threshold | float
-             and not ns.previous_rain
-             and ns.current_rain) }}
+         or trigger.id == 'forecast' }}
 
 actions:
   - if:
@@ -213,6 +196,11 @@ actions:
       - action: input_boolean.turn_on
         target:
           entity_id: !input rain_flag
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: !input forecast_start_memory
+        data:
+          timestamp: 0
   - if:
       - condition: trigger
         id: stop
@@ -239,6 +227,18 @@ actions:
           {% endif %}
         {% endfor %}
         {{ ns.minutes if ns.minutes is not none else 0 }}
+      forecast_start_timestamp: >-
+        {% set now_ts = as_timestamp(now()) %}
+        {% set ns = namespace(timestamp=0) %}
+        {% for point in forecast_points %}
+          {% set timestamp = as_timestamp(point.Date, 0) %}
+          {% if now_ts <= timestamp <= now_ts + 3600
+                and point.Rainfall | float(0) > rain_forecast_threshold | float
+                and (ns.timestamp == 0 or timestamp < ns.timestamp) %}
+            {% set ns.timestamp = timestamp %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.timestamp }}
       forecast_max: >-
         {% set now_ts = as_timestamp(now()) %}
         {% set ns = namespace(maximum=0) %}
@@ -253,10 +253,30 @@ actions:
         {% endfor %}
         {{ ns.maximum }}
   - if:
+      - condition: trigger
+        id: forecast
       - condition: template
         value_template: >-
-          {{ persons | count == 0
-             or persons | select('is_state', 'home') | list | count > 0 }}
+          {{ is_state(yolp_rain_flag, 'on')
+             or states(rainfall_sensor) | float(0) > rain_forecast_threshold | float
+             or forecast_start_timestamp | int(0) == 0 }}
+    then:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: !input forecast_start_memory
+        data:
+          timestamp: 0
+  - if:
+      - condition: template
+        value_template: >-
+          {{ (trigger.id != 'forecast'
+              or (forecast_start_timestamp | int(0) > 0
+                  and is_state(yolp_rain_flag, 'off')
+                  and states(rainfall_sensor) | float(0) <= rain_forecast_threshold | float
+                  and forecast_start_timestamp | int(0)
+                      != as_timestamp(states(forecast_start_memory), 0) | int(0)))
+             and (persons | count == 0
+                  or persons | select('is_state', 'home') | list | count > 0) }}
       - condition: time
         after: !input speak_from
         before: !input speak_until
@@ -295,3 +315,12 @@ actions:
           entity_id: !input speaker
         data:
           volume_level: "{{ previous_speaker_volume | float(0.2) }}"
+      - if:
+          - condition: trigger
+            id: forecast
+        then:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: !input forecast_start_memory
+            data:
+              timestamp: "{{ forecast_start_timestamp | int }}"
