@@ -1,4 +1,4 @@
-# ha-rain-announce
+# ha-rain-forecast-announce
 
 [日本語](#日本語) | [English](#english)
 
@@ -6,7 +6,7 @@
 
 ## 日本語
 
-雨が降り出したとき・やんだときに、Home Assistant からスマートスピーカー（Google Home など）に発話させる設定です。
+雨が降り出したとき・やんだときと、雨が振り出しそうなときに、Home Assistant からスマートスピーカー（Google Home など）に発話させる設定です。
 
 ### 動き
 
@@ -82,7 +82,7 @@ https://github.com/unicco/ha-rain-announce/blob/main/blueprints/automation/rain_
 
 ## English
 
-Home Assistant configuration that makes a smart speaker (such as Google Home) announce when rain starts and when it stops.
+Home Assistant configuration that makes a smart speaker (such as Google Home) announce when rain starts, when it stops and forecast for rain.
 
 > **Japan only.** The rain data comes from the Yahoo! JAPAN Weather API (YOLP), which only covers locations in Japan.
 
