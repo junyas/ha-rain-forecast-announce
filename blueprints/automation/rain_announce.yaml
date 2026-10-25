@@ -1,5 +1,5 @@
 blueprint:
-  name: YOLP 雨の降り出し・止み・予報通知 / YOLP Rain Start, Stop and Forecast
+  name: 雨の降り出し・止み・予報通知をスマートスピーカーで知らせる / Announce Rain Start, Stop and Forecast
   description: >-
     降水強度センサーの値から雨の降り出しと止みの判定と直近1時間の予測を元に、スマートスピーカーに読み上げさせる。
     在宅・時間帯・カレンダーの予定で、しゃべってよいときだけ発話する。
