@@ -217,12 +217,15 @@ actions:
         {% set now_ts = as_timestamp(now()) %}
         {% set ns = namespace(minutes=none) %}
         {% for point in forecast_points %}
-          {% set timestamp = as_timestamp(point.Date, 0) %}
-          {% if now_ts <= timestamp <= now_ts + 3600
-                and point.Rainfall | float(0) > rain_forecast_threshold | float %}
-            {% set minutes = ((timestamp - now_ts) / 60) | round(0, 'ceil') | int %}
-            {% if ns.minutes is none or minutes < ns.minutes %}
-              {% set ns.minutes = minutes %}
+          {% set forecast_date = strptime((point.Date | default('', true) | string) ~ '+0900', '%Y%m%d%H%M%z', none) %}
+          {% if forecast_date is not none %}
+            {% set timestamp = as_timestamp(forecast_date) %}
+            {% if now_ts <= timestamp <= now_ts + 3600
+                  and point.Rainfall | float(0) > rain_forecast_threshold | float %}
+              {% set minutes = ((timestamp - now_ts) / 60) | round(0, 'ceil') | int %}
+              {% if ns.minutes is none or minutes < ns.minutes %}
+                {% set ns.minutes = minutes %}
+              {% endif %}
             {% endif %}
           {% endif %}
         {% endfor %}
@@ -231,11 +234,14 @@ actions:
         {% set now_ts = as_timestamp(now()) %}
         {% set ns = namespace(timestamp=0) %}
         {% for point in forecast_points %}
-          {% set timestamp = as_timestamp(point.Date, 0) %}
-          {% if now_ts <= timestamp <= now_ts + 3600
-                and point.Rainfall | float(0) > rain_forecast_threshold | float
-                and (ns.timestamp == 0 or timestamp < ns.timestamp) %}
-            {% set ns.timestamp = timestamp %}
+          {% set forecast_date = strptime((point.Date | default('', true) | string) ~ '+0900', '%Y%m%d%H%M%z', none) %}
+          {% if forecast_date is not none %}
+            {% set timestamp = as_timestamp(forecast_date) %}
+            {% if now_ts <= timestamp <= now_ts + 3600
+                  and point.Rainfall | float(0) > rain_forecast_threshold | float
+                  and (ns.timestamp == 0 or timestamp < ns.timestamp) %}
+              {% set ns.timestamp = timestamp %}
+            {% endif %}
           {% endif %}
         {% endfor %}
         {{ ns.timestamp }}
@@ -243,11 +249,14 @@ actions:
         {% set now_ts = as_timestamp(now()) %}
         {% set ns = namespace(maximum=0) %}
         {% for point in forecast_points %}
-          {% set timestamp = as_timestamp(point.Date, 0) %}
-          {% if now_ts <= timestamp <= now_ts + 3600 %}
-            {% set rainfall = point.Rainfall | float(0) %}
-            {% if rainfall > ns.maximum %}
-              {% set ns.maximum = rainfall %}
+          {% set forecast_date = strptime((point.Date | default('', true) | string) ~ '+0900', '%Y%m%d%H%M%z', none) %}
+          {% if forecast_date is not none %}
+            {% set timestamp = as_timestamp(forecast_date) %}
+            {% if now_ts <= timestamp <= now_ts + 3600 %}
+              {% set rainfall = point.Rainfall | float(0) %}
+              {% if rainfall > ns.maximum %}
+                {% set ns.maximum = rainfall %}
+              {% endif %}
             {% endif %}
           {% endif %}
         {% endfor %}
@@ -271,6 +280,8 @@ actions:
         value_template: >-
           {{ (trigger.id != 'forecast'
               or (forecast_start_timestamp | int(0) > 0
+                  and forecast_minutes | int(0) > 0
+                  and forecast_max | float(0) > 0
                   and is_state(yolp_rain_flag, 'off')
                   and states(rainfall_sensor) | float(0) <= rain_forecast_threshold | float
                   and forecast_start_timestamp | int(0)
